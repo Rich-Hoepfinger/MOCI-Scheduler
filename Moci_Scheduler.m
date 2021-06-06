@@ -9,7 +9,7 @@
 % picture taking. Returns a whole schedule for the satellite to follow
 % provided it does not have an emergency.
 
-targets = 'target_list.csv';
+targets = 'C:\Users\geoki\Desktop\SSRL\target_list.csv';
 
 % Reads the excel file
 data = readcell(targets);
@@ -88,13 +88,13 @@ cam = conicalSensor(moci, "Name" , camName, "MaxViewAngle", 4.8, ...
 % hours to get a access file while problem shooting. Just computed LOS
 % access between MOCI and GS list to have sample text file for scheduler. 
 
-intervals = [];
+acs = [];
 for i = 1:86 
-    event = access(cam, gsList(i));
-    intvls = accessIntervals(event);
-    intervals = [intervals; intvls];
+     event = access(cam, gsList(i));
+     acs = [acs, event];
 end
-
+intvls = accessIntervals(acs);
+intervals = intvls;
 
 %Calculating the maximum elevation between satellite and target during
 %passover -----UNTESTED--------
@@ -132,7 +132,7 @@ T1 = array2table(intervals)
 
 T2 = splitvars(T1)
 
-writetable(T2, 'access.txt');
+writetable(T2, 'C:\Users\geoki\Desktop\SSRL\access.txt');
 
 % Cleaning up / ordering access data. This will be done via a python script
 % using the scheduler functions that Conor already wrote a while back and
