@@ -173,7 +173,7 @@ while i <= height(sortedArray)
 end
 
 
-% writetable(T2, 'access.txt');
+writetable(sortedArray, 'access.txt');
 
 
 
