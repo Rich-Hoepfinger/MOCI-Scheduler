@@ -9,7 +9,7 @@
 % picture taking. Returns a whole schedule for the satellite to follow
 % provided it does not have an emergency.
 
-targets = 'C:\Users\geoki\Desktop\SSRL\target_list.csv';
+targets = 'target_list.csv';
 
 % Reads the excel file
 data = readcell(targets);
@@ -23,27 +23,18 @@ long = cell2mat(latandlong(:,3)');
 names = cellstr(latandlong(:,1)');
 
 
-% --------UNTESTED----------
-% bigdata = [];
-% for i = 1:length(lat)
-%     toAdd = [lat(i), long(i), names(i)]
-%     bigdata = [bigdata; toAdd]
-% end
-
-% bigdata
-
 % sets up the specified datetime range
 
-startTime = datetime(2021,5,25,0,0,0);
-stopTime = startTime + days(10);
-sampleTime = 30; %seconds
+startTime = datetime(2021,6,10,0,0,0);
+stopTime = startTime + hours(6);
+sampleTime = 10; %seconds
 
 % adds the specified datetime range to a new satelliteScenario
 sc = satelliteScenario(startTime,stopTime,sampleTime);
 
 % makes the UGA groundstation for data uplink and downlink from MOCI
 minElevationAngle = 25;
-name = names(84);
+name = 'Ground_Station';
 gs = groundStation(sc, lat(84), long(84), ...
     'Name', name, ...
     'minElevationAngle', minElevationAngle);
@@ -90,55 +81,101 @@ cam = conicalSensor(moci, "Name" , camName, "MaxViewAngle", 4.8, ...
 
 acs = [];
 for i = 1:86 
-     event = access(cam, gsList(i));
-     acs = [acs, event];
+    event = access(moci, gsList(i));
+    acs = [acs, event];
 end
-intvls = accessIntervals(acs);
-intervals = intvls;
+
+intervals = accessIntervals(acs);
 
 %Calculating the maximum elevation between satellite and target during
-%passover -----UNTESTED--------
+%passover
 
-% MOCIelevations = []
+%MOCIelevations = []
 
-% for i = 2:length(intervals)
-%     [el] = aer(intervals[i][2], moci, intervals[i][4]);
-%     MOCIelevations = [MOCIelevations, intervals[i][2], el];
-% end
+%elevInter = 'testIntervals.csv';
+%elevdata = readcell(elevInter);
+%elevdatanew = elevdata;
 
-% T3 = array2table(MOCIelevations)
-% 
-% writetable(T3, 'elevations.txt')
+%startTimes = cell2mat(elevdatanew(:,1)');
+%endTimes = cell2mat(elevdatanew(:,2)');
+%targetNames = cellstr(elevdatanew(:,3)');
+
+%for i = 1:length(startTimes)
+%    %Target name as string
+%    targetInitial = targetNames(i);
+%    
+%    %Finding ground station object corresponding to specific name
+%    for j = 1:length(lat)
+%        if gsList(j).Name == targetInitial
+%            target = gsList(j);
+%        end
+%    end
+%    
+%    %Start of interval as datetime
+%    timeOne = startTimes(i)
+%   
+%   %End of interval as datetime
+%    timeTwo = endTimes(i);
+%    
+%   %Determing max elevation over interval
+%    maxEl = 0;
+%    while timeOne < timeTwo
+%        [az, elev, r] = aer(target, moci, timeOne);
+%        if elev > maxEl
+%            maxEl = elev;
+%       timeOne + seconds(1);
+%        
+%    %Appending elevation and repective target to the list of elevations
+%    MOCIelevations = [MOCIelevations; targetFinal, maxEl];
+%end
+
+%Writing list of satellite elevations to text file
+%T3 = array2table(MOCIelevations)
+
+%writetable(T3, 'elevations.txt')
 
 %Calculating the maxiumum elevation between sun and target during passover
 % --------UNTESTED------------
 
-% SUNelevations = []
+%SUNelevations = []
 
-% for i = 2:length(intervals)
-%     for j = 1:length(lat)
-%         if intervals[j][2] == bigdata[j][3]
-%             la = bigdata[j][1];
-%             lo = bigdata[j][2];
-%         end
-%     end
-%     [Az El] = SolarAzEl(intervals[i][4], la, lo, 0)
-%     elevation = [El]
-%     SUNelevatons = [SUNelevations, El]
-% end
+%for i = 2:length(intervals)
+%    for j = 1:length(lat)
+%        if intervals[j][2] == bigdata[j][3]
+%            la = bigdata[j][1];
+%            lo = bigdata[j][2];
+%        end
+%    end
+%    [Az El] = SolarAzEl(intervals[i][4], la, lo, 0)
+%    elevation = [El]
+%    SUNelevatons = [SUNelevations, El]
+%end
 
 % Formatting table in order to write to text file of raw data 
-T1 = array2table(intervals)
+T1 = array2table(intervals);
 
-T2 = splitvars(T1)
+T2 = splitvars(T1);
 
-writetable(T2, 'C:\Users\geoki\Desktop\SSRL\access.txt');
+sortedArray = sortrows(T2,4);
 
-% Cleaning up / ordering access data. This will be done via a python script
-% using the scheduler functions that Conor already wrote a while back and
-% are the same ones used in the SPOC STK Scheduler script. The idea for the
-% matlab script, as i see it, is to produce the data. Then, using the
-% python functions already written, we can create the schedule. 
+i = 2;
+while i <= height(sortedArray)
+    tupper = sortedArray{i-1,5};
+    tlower = sortedArray{i-1,4};
+    t = sortedArray{i,4};
+    tf = isbetween(t,tlower,tupper);
+    if tf == 1
+        sortedArray(i,:) = [];
+        currentheight = height(sortedArray);
+        i = i - 1;
+    end
+    i = i + 1;
+end
+
+
+% writetable(T2, 'access.txt');
+
+
 
 
 
@@ -147,9 +184,6 @@ writetable(T2, 'C:\Users\geoki\Desktop\SSRL\access.txt');
 
 %v = satelliteScenarioViewer(sc);
 %fov = fieldOfView(cam([cam.Name] == "MOCI Camera"));
-
-
-
 
 
 
