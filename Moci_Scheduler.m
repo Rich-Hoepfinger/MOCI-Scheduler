@@ -24,8 +24,9 @@ names = cellstr(latandlong(:,1)');
 
 
 % sets up the specified datetime range
-
-startTime = datetime(2021,6,10,0,0,0);
+timezone = 'UTC';
+startTime = datetime(2021,6,10,0,0,0, ...
+    'TimeZone', timezone);
 stopTime = startTime + hours(6);
 sampleTime = 10; %seconds
 
@@ -85,7 +86,9 @@ for i = 1:86
     acs = [acs, event];
 end
 
-intervals = accessIntervals(acs);
+acs = [acs,access(gsList(1), moci)];
+
+T2 = accessIntervals(acs);
 
 %Calculating the maximum elevation between satellite and target during
 %passover
@@ -152,28 +155,95 @@ intervals = accessIntervals(acs);
 %end
 
 % Formatting table in order to write to text file of raw data 
-T1 = array2table(intervals);
+% T1 = array2table(intervals);
 
-T2 = splitvars(T1);
+% T2 = splitvars(T1);
 
+% sorts the table by the start time of each interval
 sortedArray = sortrows(T2,4);
 
+% gets rid of the last row if it is at the stop time
+if sortedArray{height(sortedArray),5} + minutes(30) >= stopTime
+    sortedArray(height(sortedArray),:) = [];
+end
+
+% gets rid of any times that conflict, while prioritizing data downlink
 i = 2;
 while i <= height(sortedArray)
-    tupper = sortedArray{i-1,5};
-    tlower = sortedArray{i-1,4};
+    tupper = sortedArray{i - 1,5} + minutes(30);
+    tlower = sortedArray{i - 1,4};
     t = sortedArray{i,4};
     tf = isbetween(t,tlower,tupper);
-    if tf == 1
+    if tf == 1 && sortedArray{i,1} ~= "Ground_Station"
         sortedArray(i,:) = [];
-        currentheight = height(sortedArray);
+        i = i - 1;
+    elseif tf == 1
+        sortedArray(i - 1,:) = [];
         i = i - 1;
     end
     i = i + 1;
 end
 
+% sorts the table by the start time of each interval
+sortedArray = sortrows(sortedArray,4);
 
-writetable(sortedArray, 'access.txt');
+i = 1;
+while i <= height(sortedArray)
+    if sortedArray{i,1} == "MOCI" && sortedArray{i,6} ~= 1800
+        newRow = sortedArray(i,:);
+        newRow{1,1} = "Data Processing";
+        newRow{1,2} = "Data Processing";
+        newRow{1,4} = sortedArray{i,5};
+        newRow{1,5} = sortedArray{i,5} + minutes(30);
+        newRow{1,6} = 1800;
+        sortedArray = [sortedArray; newRow];
+    end
+    i = i + 1;
+end
+
+% sorts the table by the start time of each interval
+sortedArray = sortrows(sortedArray,4);
+
+if sortedArray{1,4} > startTime
+    newRow = sortedArray(1,:);
+    newRow{1,1} = "Cruise";
+    newRow{1,2} = "Cruise";
+    newRow{1,4} = startTime;
+    newRow{1,5} = sortedArray{1,4};
+    newRow{1,6} = seconds(newRow{1,5} - newRow{1,4});
+    sortedArray = [sortedArray; newRow];
+end
+
+i = 1;
+while i <= height(sortedArray)
+    if sortedArray{i,1} ~= "Cruise" && sortedArray{i+1,1} ~= "Cruise" && ... 
+        sortedArray{i,1} ~= "MOCI"
+        newRow = sortedArray(i,:);
+        newRow{1,1} = "Cruise";
+        newRow{1,2} = "Cruise";
+        newRow{1,4} = sortedArray{i,5};
+        newRow{1,5} = sortedArray{i+1,4};
+        newRow{1,6} = seconds(newRow{1,5} - newRow{1,4});
+        sortedArray = [sortedArray; newRow];      
+        
+    end
+    i = i + 1;
+end
+
+% sorts the table by the start time of each interval
+sortedArray = sortrows(sortedArray,4);
+
+if sortedArray{height(sortedArray),5} < stopTime
+    newRow = sortedArray(height(sortedArray),:);
+    newRow{1,1} = "Cruise";
+    newRow{1,2} = "Cruise";
+    newRow{1,4} = sortedArray{height(sortedArray),5};
+    newRow{1,5} = stopTime;
+    newRow{1,6} = seconds(newRow{1,5} - newRow{1,4});
+    sortedArray = [sortedArray; newRow];
+end
+
+% writetable(T2, 'access.txt');
 
 
 
